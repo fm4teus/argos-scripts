@@ -109,14 +109,19 @@ total_time = sum(intervals, timedelta())
 
 # Format the output for Argos
 title = "⚒️ Em jornada\n"
-if intervals[-1] > limit:
-    title = "⚠️ Atenção ao limite de jornada!\n"
-if not working:
+
+if total_time+tolerance < working_hours and not working:
     title = "💤 Intervalo\n"
 	
-if total_time+tolerance>=working_hours:
+if total_time+tolerance >= working_hours and not working:
     title = "✅ Done\n"
 	
+if total_time>=working_hours+tolerance and working:
+    title = "⚠️ Horas extras\n"
+
+if intervals[-1] > limit and working:
+    title = "⚠️ Atenção ao limite de jornada!\n"
+
 output = ""
 output += title
 output += "---\n"
