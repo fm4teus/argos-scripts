@@ -6,14 +6,16 @@ Preencher variáveis do topo do script com as credenciais. Pra achar elas é só
 ```python
 #### CONFIG ####
 # credentials
-email = ""
-client = ""
-access_token = ""
+email = ""  # Use your actual email
+client = ""  # Use your actual client ID
+access_token = ""  # Use your actual access token
+employee_id = ""  # Use your actual employee ID
 
 # aviso de limite de jornada (6h)
-limit = timedelta(hours=5,minutes=30)
-working_hours = timedelta(hours=8)
-tolerance=timedelta(minutes=10)
+limit = timedelta(hours=5, minutes=30)
+working_hours = timedelta(hours=8, minutes=0)
+tolerance = timedelta(minutes=10)
+balance_warning = timedelta(hours=4, minutes=0)
 #### end CONFIG ####
 ```
 
@@ -29,3 +31,6 @@ depois é só conferir a instalação do python e das libs, colar na pasta `~/.c
 ![pontodone](https://github.com/fm4teus/argos-scripts/assets/55215503/0f32b601-1e44-4257-bf7c-ce2947c5c1ca)
 ### em jornada
 ![ponto1](https://github.com/fm4teus/argos-scripts/assets/55215503/2f54530f-83af-4e19-897e-3c2becd97f3e)
+### saldo de banco de horas e aviso de espelhos de ponto pendentes
+![image](https://github.com/user-attachments/assets/31fd8ba3-55f0-4afe-9817-5246f8d05703)
+
