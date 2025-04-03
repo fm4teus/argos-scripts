@@ -10,11 +10,15 @@ client = ""  # Use your actual client ID
 access_token = ""  # Use your actual access token
 employee_id = ""  # Use your actual employee ID
 
-# aviso de limite de jornada (6h)
-limit = timedelta(hours=5, minutes=30)
 working_hours = timedelta(hours=8, minutes=0)
 tolerance = timedelta(minutes=10)
 balance_warning = timedelta(hours=4, minutes=0)
+# aviso de limite de jornada (6h)
+max_sequential = timedelta(hours=6, minutes=0)
+# aviso de limite de horas extras (2h)
+max_extra = timedelta(hours=2, minutes=0)
+# tempo antes que o aviso é dado
+warning_alarm = timedelta(minutes=30)
 #### end CONFIG ####
 
 
@@ -102,14 +106,23 @@ title = "⚒️ Em jornada\n"
 if total_time + tolerance < working_hours and not working:
     title = "💤 Intervalo\n"
 
+if total_time + tolerance >= working_hours and working:
+    title = "⌚ Pode sair\n"
+
 if total_time + tolerance >= working_hours and not working:
     title = "✅ Done\n"
 
 if total_time >= working_hours + tolerance and working:
     title = "⚠️ Horas extras\n"
 
-if intervals[-1] > limit and working:
-    title = "⚠️ Atenção ao limite de jornada!\n"
+remaining_extra_hours = working_hours + max_extra - total_time
+remaining_sequential_hours = max_sequential - intervals[-1]
+
+if remaining_extra_hours <= warning_alarm and working:
+    title = "🚨 Atenção ao limite de horas extras!\n"
+
+if remaining_sequential_hours <= warning_alarm and working and remaining_sequential_hours < remaining_extra_hours:
+    title = "🚨 Atenção ao limite de jornada!\n"
 
 output = ""
 output += title
