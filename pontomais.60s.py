@@ -5,10 +5,7 @@ from datetime import datetime, timedelta
 
 #### CONFIG ####
 # credentials
-email = ""  # Use your actual email
-client = ""  # Use your actual client ID
-access_token = ""  # Use your actual access token
-employee_id = ""  # Use your actual employee ID
+from secrets import email, client, access_token, employee_id
 
 working_hours = timedelta(hours=8, minutes=0)
 tolerance = timedelta(minutes=10)
