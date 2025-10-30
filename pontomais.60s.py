@@ -16,6 +16,7 @@ max_sequential = timedelta(hours=6, minutes=0)
 max_extra = timedelta(hours=2, minutes=0)
 # tempo antes que o aviso é dado
 warning_alarm = timedelta(minutes=30)
+days_delta = 0 # Use 0 for today, 1 for yesterday, etc.
 #### end CONFIG ####
 
 
@@ -60,9 +61,10 @@ def format_timedelta(td):
 
 # --- First API Call ---
 url = "https://api.pontomais.com.br/api/time_cards/work_days/current"
+today = datetime.today() - timedelta(days=days_delta)
 params = {
-    "start_date": f'{datetime.today().strftime("%Y-%m-%d")}',
-    "end_date": f'{datetime.today().strftime("%Y-%m-%d")}',
+    "start_date": f'{today.strftime("%Y-%m-%d")}',
+    "end_date": f'{today.strftime("%Y-%m-%d")}',
     "attributes": "time_cards"
 }
 headers = {
@@ -82,99 +84,104 @@ response = requests.get(url, headers=headers, params=params)
 
 # Extract clock-in times
 times = extract_clock_in_times(response.json())
-if len(times) == 0:
-    print("🚫 404")
-    exit()
-start = datetime.strptime(times[0], "%d/%m/%Y %H:%M")
 
-working = False
-if len(times) % 2 != 0:
-    working = True
+def get_time_balance_info(headers, employee_id, balance_warning):
+    url2 = f"https://api.pontomais.com.br/api/employees/statuses/{employee_id}"
+    headers2 = headers  # Reuse headers from the first request
 
-# Calculate intervals
-intervals = calculate_intervals(times)
-# Calculate total time
-total_time = sum(intervals, timedelta())
+    response2 = requests.get(url2, headers=headers2)
+    balance_output = ""
 
+    if response2.status_code == 200:
+        data = response2.json()
+        time_balance_seconds = data.get('statuses', {}).get('time_balance', 0)
+        time_balance = timedelta(seconds=abs(time_balance_seconds))
+        formatted_time_balance = format_timedelta(time_balance)
+        balance_output += "\n---\n"
 
-# Format the output for Argos
-title = "⚒️ Em jornada\n"
+        if abs(time_balance) > balance_warning:
+            balance_output += "⚠️  "
 
-if total_time + tolerance < working_hours and not working:
-    title = "💤 Intervalo\n"
+        if time_balance_seconds < 0:
+            balance_output += f"Banco de Horas: <span color='#ff0000'>-{formatted_time_balance}</span>"  # Red for negative
+        else:
+            balance_output += f"Banco de Horas: <span color='#00ff00'>+{formatted_time_balance}</span>"  # Green for positive
 
-if total_time + tolerance >= working_hours and working:
-    title = "⌚ Pode sair\n"
-
-if total_time + tolerance >= working_hours and not working:
-    title = "✅ Done\n"
-
-if total_time >= working_hours + tolerance and working:
-    title = "⚠️ Horas extras\n"
-
-remaining_extra_hours = working_hours + max_extra - total_time
-remaining_sequential_hours = max_sequential - intervals[-1]
-
-if remaining_extra_hours <= warning_alarm and working:
-    title = "🚨 Atenção ao limite de horas extras!\n"
-
-if remaining_sequential_hours <= warning_alarm and working and remaining_sequential_hours < remaining_extra_hours:
-    title = "🚨 Atenção ao limite de jornada!\n"
+        unsigned_mirrors = data.get('statuses', {}).get('unsigned_closing_mirrors_count', 0)
+        if unsigned_mirrors > 0:
+            balance_output += "\n---\n"
+            balance_output += f"📑 Espelhos de Ponto Pendentes: {unsigned_mirrors}"
+    else:
+        balance_output += "\n---\n"
+        balance_output += "Erro ao obter dados do banco de horas."
+    return balance_output
 
 output = ""
-output += title
-output += "---\n"
-for t in times:
-    dt = t.split()
-    output += f"{dt[1]} / "
-
-output += "\n---\n"
-output += f"Total: {format_timedelta(total_time)}"
-
-output += "\n---\n"
-if working_hours > total_time:
-    missing = working_hours - total_time
-    if missing > tolerance:
-        output += f"Faltam: {format_timedelta(missing)}"
-        output += "\n---\n"
-        end = datetime.now() + missing
-        # soma horário de almoço
-        if len(times) < 3:
-            end = start + working_hours + timedelta(hours=1)
-        output += f"Fim do expediente: {end.strftime('%H:%M')}"
+if len(times) == 0:
+    title = "📭 Nenhum ponto registrado hoje\n"
+    output += title
+    output += "---\n"
 else:
-    exceding_hours = total_time - working_hours
-    output += f"Extras: {format_timedelta(exceding_hours)}"
+    start = datetime.strptime(times[0], "%d/%m/%Y %H:%M")
 
-# --- Second API Call ---
-url2 = f"https://api.pontomais.com.br/api/employees/statuses/{employee_id}"
-headers2 = headers  # Reuse headers from the first request
+    working = False
+    if len(times) % 2 != 0:
+        working = True
 
-response2 = requests.get(url2, headers=headers2)
+    # Calculate intervals
+    intervals = calculate_intervals(times)
+    # Calculate total time
+    total_time = sum(intervals, timedelta())
 
-if response2.status_code == 200:
-    data = response2.json()
-    time_balance_seconds = data.get('statuses', {}).get('time_balance', 0)
-    time_balance = timedelta(seconds=abs(time_balance_seconds))
-    formatted_time_balance = format_timedelta(time_balance)
+    # Format the output for Argos
+    title = "⚒️ Em jornada\n"
+
+    if total_time + tolerance < working_hours and not working:
+        title = "💤 Intervalo\n"
+
+    if total_time + tolerance >= working_hours and working:
+        title = "⌚ Pode sair\n"
+
+    if total_time + tolerance >= working_hours and not working:
+        title = "✅ Done\n"
+
+    if total_time >= working_hours + tolerance and working:
+        title = "⚠️ Horas extras\n"
+
+    remaining_extra_hours = working_hours + max_extra - total_time
+    remaining_sequential_hours = max_sequential - intervals[-1]
+
+    if remaining_extra_hours <= warning_alarm and working:
+        title = "🚨 Atenção ao limite de horas extras!\n"
+
+    if remaining_sequential_hours <= warning_alarm and working and remaining_sequential_hours < remaining_extra_hours:
+        title = "🚨 Atenção ao limite de jornada!\n"
+
+    output += title
+    output += "---\n"
+    for t in times:
+        dt = t.split()
+        output += f"{dt[1]} / "
+
     output += "\n---\n"
+    output += f"Total: {format_timedelta(total_time)}"
 
-    if abs(time_balance) > balance_warning:
-        output += "⚠️  "
-
-    if time_balance_seconds < 0:
-        output += f"Banco de Horas: <span color='#ff0000'>-{formatted_time_balance}</span>"  # Red for negative
+    output += "\n---\n"
+    if working_hours > total_time:
+        missing = working_hours - total_time
+        if missing > tolerance:
+            output += f"Faltam: {format_timedelta(missing)}"
+            output += "\n---\n"
+            end = datetime.now() + missing
+            # soma horário de almoço
+            if len(times) < 3:
+                end = start + working_hours + timedelta(hours=1)
+            output += f"Fim do expediente: {end.strftime('%H:%M')}"
     else:
-        output += f"Banco de Horas: <span color='#00ff00'>+{formatted_time_balance}</span>"  # Green for positive
+        exceding_hours = total_time - working_hours
+        output += f"Extras: {format_timedelta(exceding_hours)}"
 
-
-    unsigned_mirrors = data.get('statuses', {}).get('unsigned_closing_mirrors_count', 0)
-    if unsigned_mirrors > 0:
-        output += "\n---\n"
-        output += f"📑 Espelhos de Ponto Pendentes: {unsigned_mirrors}"
-else:
-    output += "\n---\n"
-    output += "Erro ao obter dados do banco de horas."
+output += get_time_balance_info(headers, employee_id, balance_warning)
 
 # Print the formatted output
 print(output)
