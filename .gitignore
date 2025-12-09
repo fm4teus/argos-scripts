@@ -1,2 +1,6 @@
-secrets.py
 __pycache__/
+# Ignore actual secrets files (keep .sample.* files)
+secrets/*.py
+!secrets/*.sample.py
+secrets/*.sh
+!secrets/*.sample.sh

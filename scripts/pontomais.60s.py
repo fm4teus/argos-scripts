@@ -5,7 +5,27 @@ from datetime import datetime, timedelta
 
 #### CONFIG ####
 # credentials
-from secrets import email, client, access_token, employee_id
+import sys
+import os
+
+# Try to find secrets in multiple locations:
+# 1. In secrets/ directory relative to script (development)
+# 2. In ~/.config/argos/secrets/ (deployed)
+# 3. In ../secrets/ relative to script (alternative)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+possible_paths = [
+    os.path.join(script_dir, '..', 'secrets'),
+    os.path.expanduser('~/.config/argos/secrets'),
+    os.path.join(script_dir, 'secrets'),
+]
+
+for path in possible_paths:
+    abs_path = os.path.abspath(path)
+    if os.path.exists(abs_path):
+        sys.path.insert(0, abs_path)
+        break
+
+from pontomais import email, client, access_token, employee_id
 
 working_hours = timedelta(hours=8, minutes=0)
 tolerance = timedelta(minutes=10)
